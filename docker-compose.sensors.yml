@@ -1,0 +1,34 @@
+version: "3.8"
+services:
+  accelerometer_sensor:
+    build: ./accelerometer_sensor
+    command: sh -c "sleep 0 && python accelerometer_sensor.py"
+    container_name: project_accelerometer_sensor
+    networks:
+      - project-net
+    
+
+  heart_rate_sensor:
+    build: ./heart_rate_sensor
+    command: sh -c "sleep 15 && python heart_rate_sensor.py"
+    container_name: project_heart_rate_sensor
+    networks:
+      - project-net
+  thermometer_sensor:
+    build: ./thermometer_sensor
+    command: sh -c "sleep 30 && python thermometer_sensor.py"
+    container_name: project_thermometer_sensor
+    networks:
+      - project-net
+  oximeter_sensor:
+    build: ./oximeter_sensor
+    command: sh -c "sleep 45 && python oximeter_sensor.py"
+    container_name: project_oximeter_sensor
+    networks:
+      - project-net
+  
+
+networks:
+  project-net:
+    external: true
+    name: project_network

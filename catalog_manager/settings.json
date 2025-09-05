@@ -1,0 +1,11 @@
+{
+    "catalogURL": "http://catalog",
+    "controlInterval": 300, 
+    "threshold": 300,
+    "serviceInfo": {
+        "ID": 2,
+        "serviceName": "CatalogManager",
+        "last_updated": ""
+    },
+    "pingInterval": 60
+}

@@ -1,0 +1,88 @@
+version: '3.8'
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: project_mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - project-net
+  catalog:
+    build: ./catalog
+    container_name: project_catalog
+    ports:
+      - "8080:80"
+    stop_grace_period: 60s
+    networks:
+      - project-net
+
+  catalog_manager:
+    build: ./catalog_manager
+    container_name: project_catalog_manager
+    depends_on:
+      - catalog
+    stop_grace_period: 60s
+    networks:
+      - project-net
+
+  thingspeak_adaptor:
+    build: ./thingspeak_adaptor
+    container_name: project_thingspeak_adaptor
+    depends_on:
+      - catalog
+      - mosquitto
+    stop_grace_period: 60s
+    networks:
+      - project-net
+
+  time_shift:
+    build: ./time_shift
+    container_name: project_time_shift
+    depends_on:
+      - catalog
+      - thingspeak_adaptor
+      - mosquitto
+    stop_grace_period: 60s
+    networks:
+      - project-net
+
+  time_control:
+    build: ./time_control
+    container_name: project_time_control
+    depends_on:
+      - catalog
+      - thingspeak_adaptor
+      - mosquitto
+    stop_grace_period: 60s
+    networks:
+      - project-net
+
+  telegram_bot:
+    build: ./telegram_bot
+    container_name: project_telegram_bot
+    depends_on:
+      - catalog
+      - time_shift
+      - mosquitto
+    stop_grace_period: 60s
+    networks:
+      - project-net
+
+  node-red:
+    build: ./nodered
+    container_name: project_node_red
+    ports:
+      - "1880:1880"
+    depends_on:
+      - catalog
+      - thingspeak_adaptor
+      - time_shift
+      - mosquitto
+    networks:
+      - project-net
+
+networks:
+  project-net:
+    name: project_network

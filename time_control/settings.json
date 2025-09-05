@@ -1,0 +1,35 @@
+{
+    "catalogURL": "http://catalog:80",
+    "ThingspeakAdaptorURL": "http://thingspeak_adaptor:80",
+    "serviceInfo": {
+        "ID": "",
+        "serviceName": "TimeControl",
+        "last_update": ""
+    },
+    "mqtt_data":{
+        "broker": "mosquitto",
+        "port":1883,
+        "mqtt_topic":"project/sensors/#"
+    },
+    "pingInterval": 60,
+    "thingspeak_fields": [
+        "temperature",
+        "acceleration",
+        "heart_rate",
+        "oxygen_saturation"
+    ],
+    "number_of_samples": 10,
+    "normal_values": {
+        "temperature": 36.6,
+        "acceleration": 9.81,
+        "heart_rate": 70,
+        "oxygen_saturation": 95
+    },
+    "alarm_topic": "project/alarms/time_control",
+    "z_score_threshold": 2.5,
+    "moving_average_window": 100,
+    "moving_average_threshold": 5,
+    "fall_detection_threshold": 5,
+    "temperature_std": 1.5,
+    "heart_rate_std": 7
+}

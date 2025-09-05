@@ -1,0 +1,23 @@
+{
+    "catalogURL": "http://catalog:80",
+    "mqtt_data":{
+        "broker": "mosquitto",
+        "port":1883,
+        "mqtt_topic":"project/alarms/#"
+    },
+    "serviceInfo": {
+        "ID": "",
+        "serviceName": "TelegramBot",
+        "last_update": ""
+    },
+    "thingspeak_fields": [
+        "temperature",
+        "acceleration",
+        "heart_rate",
+        "oxygen_saturation"
+    ],
+    "pingInterval": 60,
+    "apiPort": 8081,
+    "telegramToken": "INSERT BOT KEY",
+    "timeShiftUrl": "http://time_shift:80"
+}

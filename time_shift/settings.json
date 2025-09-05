@@ -1,0 +1,30 @@
+{
+    "catalogURL": "http://catalog:80",
+    "ThingspeakAdaptorURL": "http://thingspeak_adaptor:80",
+    "serviceInfo": {
+        "ID": "",
+        "serviceName": "TimeShift",
+        "last_update": ""
+    },
+    "mqtt_data":{
+        "broker":"mosquitto",
+        "port":1883
+    },
+    "thingspeak_fields": [
+        "temperature",
+        "acceleration",
+        "heart_rate",
+        "oxygen_saturation"
+    ],
+    "normal_values": {
+        "temperature": 36.6,
+        "acceleration": 0.0,
+        "heart_rate": 60,
+        "oxygen_saturation": 95
+    },
+    "pingInterval": 60,
+    "alarm_topic": "project/alarms/time_shift",
+    "apiPort": 8082
+
+    
+}

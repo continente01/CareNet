@@ -1,0 +1,6 @@
+{
+    "catalogURL": "http://catalog",
+    "ThingspeakAdaptorURL": "http://thingspeak_adaptor:80",
+    "apiPort": "8080",
+    "CatalogFileName": "catalog.json"
+}

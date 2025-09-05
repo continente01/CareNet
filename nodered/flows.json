@@ -1,0 +1,1006 @@
+[
+    {
+        "id": "1a1a1a1a1a1a1a1a",
+        "type": "tab",
+        "label": "Patient Dashboard",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "patients_get",
+        "type": "http request",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Get Patients",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://catalog:80/patients",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 510,
+        "y": 320,
+        "wires": [
+            [
+                "patients_func"
+            ]
+        ]
+    },
+    {
+        "id": "patients_func",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Build Patient Options",
+        "func": "let patientList = msg.payload.patients || [];\nlet options = [{\"None\": 0 }];\noptions = options.concat(patientList.map(p => p.ID));\nmsg.options = options;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 740,
+        "y": 320,
+        "wires": [
+            [
+                "374128bb16fed42c",
+                "dropdown_patients"
+            ]
+        ]
+    },
+    {
+        "id": "set_selected_patient",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Build Time Shift Url",
+        "func": "if (msg.payload == 0 || msg.payload == undefined) {\n    return null; // stops the flow, nothing sent to next node\n}\nlet patientID = msg.payload;\nmsg.url = `http://time_shift:80/${patientID}`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1430,
+        "y": 320,
+        "wires": [
+            [
+                "e03caa84376abca5"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_in_sensor",
+        "type": "mqtt in",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Patient Sensors",
+        "topic": "project/sensors/#",
+        "qos": "2",
+        "datatype": "auto",
+        "broker": "2407f8df0e0a2e8f",
+        "nl": false,
+        "rap": false,
+        "rh": 0,
+        "inputs": 0,
+        "x": 280,
+        "y": 880,
+        "wires": [
+            [
+                "filter_patient_data"
+            ]
+        ]
+    },
+    {
+        "id": "filter_patient_data",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Filter for Selected Patient",
+        "func": "// topic: project/sensors/{patientID}/{deviceID}\nlet topicParts = msg.topic.split('/');\nlet patientID = flow.get('selectedPatientID');\nif (!patientID || patientID == 0 || topicParts[2] != patientID.toString()) return null;\n// Parse payload\nlet payload = msg.payload;\nif (typeof payload === 'string') {\n    try { payload = JSON.parse(payload); } catch(e) { return null; }\n}\nmsg.patientID = patientID;\nmsg.deviceID = topicParts[3];\nmsg.data = payload;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 530,
+        "y": 880,
+        "wires": [
+            [
+                "route_sensor_data"
+            ]
+        ]
+    },
+    {
+        "id": "route_sensor_data",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Route by Field",
+        "func": "// Assume data.e is an array of measurements\nif (!msg.data.e) return null;\nfor (let entry of msg.data.e) {\n    if (entry.n == 'heart_rate') {\n        node.send([ { payload: entry.v }, null, null ]);\n    } else if (entry.n == 'oxygen_saturation') {\n        node.send([ null, { payload: entry.v }, null ]);\n    } else if (entry.n == 'temperature') {\n        node.send([ null, null, { payload: entry.v } ]);\n    }\n}\nreturn null;",
+        "outputs": 3,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 770,
+        "y": 880,
+        "wires": [
+            [
+                "208a0b692f586723"
+            ],
+            [
+                "ui_oxygen_gauge"
+            ],
+            [
+                "5f67936ead30a166"
+            ]
+        ]
+    },
+    {
+        "id": "mqtt_in_alarm_time_control",
+        "type": "mqtt in",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Alarm Time Control",
+        "topic": "project/alarms/time_control",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "2407f8df0e0a2e8f",
+        "nl": false,
+        "rap": false,
+        "rh": 0,
+        "inputs": 0,
+        "x": 410,
+        "y": 1300,
+        "wires": [
+            [
+                "alarm_time_control_func",
+                "f24740bc62abb860"
+            ]
+        ]
+    },
+    {
+        "id": "alarm_time_control_func",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Show Time Control Alarm",
+        "func": "// {'alarmType': \"time_control\",\n//'patientID': patientID,\n//    'sensorID': sensorID,\n//        'field': field,\n//            'value': value,\n//                'timestamp': timestamp}\nmsg.payload = `ALARM FOR PATIENT ${msg.payload.patientID} for field ${msg.payload.field}`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 670,
+        "y": 1300,
+        "wires": [
+            [
+                "451acc271c0d0ce9",
+                "c724408bfb85210f"
+            ]
+        ]
+    },
+    {
+        "id": "374128bb16fed42c",
+        "type": "debug",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "debug 1",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1000,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "ed8a5768588ddd07",
+        "type": "inject",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 330,
+        "y": 320,
+        "wires": [
+            [
+                "patients_get"
+            ]
+        ]
+    },
+    {
+        "id": "be4aa2c3ed3459da",
+        "type": "debug",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "debug 2",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1460,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "dropdown_patients",
+        "type": "ui_dropdown",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Select Patient",
+        "label": "Select Patient",
+        "tooltip": "",
+        "place": "Select option",
+        "group": "dashboard_group",
+        "order": 1,
+        "width": 12,
+        "height": 1,
+        "passthru": true,
+        "multiple": false,
+        "options": [],
+        "payload": "",
+        "topic": "",
+        "topicType": "str",
+        "className": "",
+        "x": 980,
+        "y": 320,
+        "wires": [
+            [
+                "23e4cd0c5e55c01c",
+                "c37015afc1ce060c"
+            ]
+        ]
+    },
+    {
+        "id": "9d60f395af730834",
+        "type": "debug",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "debug 3",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1700,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "2094c8ede2a0d285",
+        "type": "debug",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "debug 4",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1900,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "e03caa84376abca5",
+        "type": "http request",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 1670,
+        "y": 320,
+        "wires": [
+            [
+                "2094c8ede2a0d285",
+                "ebb4fcdaaf729884"
+            ]
+        ]
+    },
+    {
+        "id": "ebbee9a01e649eb0",
+        "type": "ui_ui_control",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "",
+        "events": "all",
+        "x": 1460,
+        "y": 620,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c37015afc1ce060c",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "show/hide group",
+        "func": "if (msg.payload == 0 || msg.payload == undefined) {\n    msg.payload = {\n        group: {\n            hide: [\"Patients_Measurements\"]\n        }\n    };\n    return msg;\n}\nmsg.payload = {\n    group: {\n        show: [\"Patients_Measurements\"]\n    }\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1440,
+        "y": 480,
+        "wires": [
+            [
+                "ebbee9a01e649eb0",
+                "9d60f395af730834"
+            ]
+        ]
+    },
+    {
+        "id": "451acc271c0d0ce9",
+        "type": "ui_toast",
+        "z": "1a1a1a1a1a1a1a1a",
+        "position": "top right",
+        "displayTime": "3",
+        "highlight": "red",
+        "sendall": true,
+        "outputs": 0,
+        "ok": "OK",
+        "cancel": "",
+        "raw": false,
+        "className": "",
+        "topic": "",
+        "name": "",
+        "x": 940,
+        "y": 1300,
+        "wires": []
+    },
+    {
+        "id": "c724408bfb85210f",
+        "type": "ui_audio",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "",
+        "group": "29d99d9c0d45448b",
+        "voice": "Google UK English Female",
+        "always": true,
+        "x": 940,
+        "y": 1340,
+        "wires": []
+    },
+    {
+        "id": "f24740bc62abb860",
+        "type": "debug",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "debug 5",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 300,
+        "y": 1240,
+        "wires": []
+    },
+    {
+        "id": "22c00c677303a8c4",
+        "type": "debug",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "debug 6",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 580,
+        "y": 1120,
+        "wires": []
+    },
+    {
+        "id": "0de1d9af8619603e",
+        "type": "debug",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "debug 7",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 880,
+        "y": 1120,
+        "wires": []
+    },
+    {
+        "id": "e91f7a782fdc5ab3",
+        "type": "inject",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Refresh every 2",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "2",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 290,
+        "y": 1040,
+        "wires": [
+            [
+                "930f743e56f4f22f"
+            ]
+        ]
+    },
+    {
+        "id": "930f743e56f4f22f",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Build patient URL",
+        "func": "let patientID = flow.get('selectedPatientID');\nif (!patientID) {\n    return null; // Stop if no patient selected\n}\nmsg.url = `http://thingspeak_adaptor:80/${patientID}`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 520,
+        "y": 1040,
+        "wires": [
+            [
+                "0b350883943a7c3d",
+                "22c00c677303a8c4"
+            ]
+        ]
+    },
+    {
+        "id": "0b350883943a7c3d",
+        "type": "http request",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Get Patient",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 770,
+        "y": 1040,
+        "wires": [
+            [
+                "0de1d9af8619603e",
+                "856a7ec11edb4914"
+            ]
+        ]
+    },
+    {
+        "id": "ui_oxygen_gauge",
+        "type": "ui_gauge",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Oxygen Level Gauge",
+        "group": "29d99d9c0d45448b",
+        "order": 4,
+        "width": 15,
+        "height": 6,
+        "gtype": "donut",
+        "title": "Oxygen Level",
+        "label": "%",
+        "format": "{{value}}",
+        "min": 80,
+        "max": 100,
+        "colors": [
+            "#ca3838",
+            "#e6e600",
+            "#00b500"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 1140,
+        "y": 900,
+        "wires": []
+    },
+    {
+        "id": "208a0b692f586723",
+        "type": "ui_template",
+        "z": "1a1a1a1a1a1a1a1a",
+        "group": "29d99d9c0d45448b",
+        "name": "Heart rate",
+        "order": 6,
+        "width": 15,
+        "height": 6,
+        "format": "<div style=\"\n    border: 2px solid #aaa; \n    border-radius: 12px; \n    padding: 15px; \n    margin: 10px 0; \n    box-shadow: 2px 2px 8px rgba(0,0,0,0.1); \n    text-align: center;\n    background: inherit;\n\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #333; margin-bottom: 10px;\">\n        Heart Rate\n    </div>\n    <div style=\"font-size: 48px; font-weight: bold; \n                color: {{ (msg.payload < 55 || msg.payload > 120) ? 'red' : '#00b500' }};\">\n        {{msg.payload}} <span style=\"font-size: 24px;\">bpm</span>\n    </div>\n</div>\n",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 1100,
+        "y": 840,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "5f67936ead30a166",
+        "type": "ui_template",
+        "z": "1a1a1a1a1a1a1a1a",
+        "group": "29d99d9c0d45448b",
+        "name": "Temperature ",
+        "order": 5,
+        "width": 15,
+        "height": 6,
+        "format": "<div style=\"\n    border: 2px solid #aaa; \n    border-radius: 12px; \n    padding: 15px; \n    margin: 10px 0; \n    box-shadow: 2px 2px 8px rgba(0,0,0,0.1); \n    text-align: center;\n    background: inherit;\n\">\n    <div style=\"font-size: 24px; font-weight: bold; color: #333; margin-bottom: 10px;\">\n        Temperature\n    </div>\n    <div style=\"font-size: 48px; font-weight: bold; \n                color: {{ (msg.payload < 35 || msg.payload > 37) ? 'red' : '#00b500' }};\">\n        {{msg.payload}} <span style=\"font-size: 24px;\">°C</span>\n    </div>\n</div>\n",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 1110,
+        "y": 960,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "856a7ec11edb4914",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Parse feeds to chart points",
+        "func": "let feeds = msg.payload.feeds || [];\nlet points = feeds\n    .filter(p => p.field2 !== null && p.created_at)\n    .map(p => ({\n        x: p.created_at,\n        y: Number(p.field2)\n    }));\nmsg.payload = [{\n    series: [\"Acceleration\"],\n    data: [points],\n    labels: points.map(p => p.x)\n}];\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1040,
+        "y": 1040,
+        "wires": [
+            [
+                "8c3de7631e93d17c",
+                "0a68a2710491a4f4"
+            ]
+        ]
+    },
+    {
+        "id": "0a68a2710491a4f4",
+        "type": "debug",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "debug 10",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1200,
+        "y": 1120,
+        "wires": []
+    },
+    {
+        "id": "8c3de7631e93d17c",
+        "type": "ui_chart",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Acceleration Chart",
+        "group": "29d99d9c0d45448b",
+        "order": 7,
+        "width": 15,
+        "height": 6,
+        "label": "Acceleration",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "auto",
+        "interpolate": "linear",
+        "removeOlder": "1",
+        "removeOlderUnit": "3600",
+        "outputs": 0,
+        "x": 1380,
+        "y": 1040,
+        "wires": []
+    },
+    {
+        "id": "e80b6293c50f336f",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Build Patient Url",
+        "func": "if (msg.payload == 0 || msg.payload == undefined) {\n    return null; // stops the flow, nothing sent to next node\n} \nif (msg.payload == 0 || msg.payload == undefined) {\n    flow.set('selectedPatientID', null);\n    return null; // stops the flow, nothing sent to next node\n}\nlet patientID = msg.payload;\nflow.set('selectedPatientID', patientID);\nmsg.url = `http://catalog:80/patients/${patientID}`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1420,
+        "y": 260,
+        "wires": [
+            [
+                "fb9ff0c7aae003ec"
+            ]
+        ]
+    },
+    {
+        "id": "fb9ff0c7aae003ec",
+        "type": "http request",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 1670,
+        "y": 260,
+        "wires": [
+            [
+                "ef5c0e533210de87"
+            ]
+        ]
+    },
+    {
+        "id": "a6e17d50d7fca6f2",
+        "type": "debug",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "debug 8",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1870,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "ef5c0e533210de87",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "json payload",
+        "func": "if (typeof msg.payload === \"string\") {\n    msg.payload = JSON.parse(msg.payload);\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1910,
+        "y": 260,
+        "wires": [
+            [
+                "b8b2920d3d54902b"
+            ]
+        ]
+    },
+    {
+        "id": "ebb4fcdaaf729884",
+        "type": "ui_template",
+        "z": "1a1a1a1a1a1a1a1a",
+        "group": "29d99d9c0d45448b",
+        "name": "Important Times",
+        "order": 2,
+        "width": 10,
+        "height": 8,
+        "format": "<div\n    style=\"border: 2px solid #FF9800; border-radius: 10px; padding: 15px; background: #fff8e1; max-width: 500px; margin: 10px auto;\">\n    <div style=\"font-size: 2em; font-weight: bold; margin-bottom: 0.8em; color:#e65100;\">\n        Important Times\n    </div>\n    <div style=\"font-size: 1.6em; margin-bottom: 0.4em;\">Temperature: {{payload.temperature}}</div>\n    <div style=\"font-size: 1.6em; margin-bottom: 0.4em;\">Acceleration: {{payload.acceleration}}</div>\n    <div style=\"font-size: 1.6em; margin-bottom: 0.4em;\">Heart Rate: {{payload.heart_rate}}</div>\n    <div style=\"font-size: 1.6em;\">Oxygen Saturation: {{payload.oxygen_saturation}}</div>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 1920,
+        "y": 320,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a09a8467f4872a29",
+        "type": "ui_template",
+        "z": "1a1a1a1a1a1a1a1a",
+        "group": "29d99d9c0d45448b",
+        "name": "Medications",
+        "order": 3,
+        "width": 10,
+        "height": 8,
+        "format": "<div style=\"border: 3px solid #28a745; padding: 15px; background: #f9fff9;\">\n  <div style=\"font-size: 2em; font-weight: bold; margin-bottom: 1em; color:#155724;\"> Medications </div>\n  <div ng-if=\"msg.payload && msg.payload.medications && msg.payload.medications.length > 0\">\n    <div ng-repeat=\"med in msg.payload.medications\"\n      style=\"border:2px solid #aaa; border-radius:8px; padding:12px; background:#ffffff; min-width:200px; margin-bottom:10px;\">\n      <b>ID:</b> {{med.ID}}<br> <b>Name:</b> {{med.name}}<br> <b>Dosage:</b> {{med.dosage}}<br> <b>Hour:</b>\n      {{med.hour}} </div>\n  </div>\n  <div ng-if=\"!msg.payload || !msg.payload.medications || msg.payload.medications.length === 0\"\n    style=\"font-size: 1.4em; color:#666; font-style: italic;\"> No medications assigned </div>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 2190,
+        "y": 180,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "b8b2920d3d54902b",
+        "type": "ui_template",
+        "z": "1a1a1a1a1a1a1a1a",
+        "group": "29d99d9c0d45448b",
+        "name": "Patient Info",
+        "order": 1,
+        "width": 10,
+        "height": 8,
+        "format": "<div\n    style=\"border: 3px solid #007ACC; border-radius: 10px; padding: 20px; background: #f0f8ff; max-width: 500px; margin: 10px auto;\">\n    <div style=\"font-size: 2.5em; font-weight: bold; margin-bottom: 0.8em; color:#003366;\">\n        Patient Info\n    </div>\n    <div style=\"font-size: 1.8em; margin-bottom: 0.4em;\"><b>ID:</b> {{msg.payload.patient.ID}}</div>\n    <div style=\"font-size: 1.8em; margin-bottom: 0.4em;\"><b>Name:</b> {{msg.payload.patient.name}}</div>\n    <div style=\"font-size: 1.8em; margin-bottom: 0.4em;\"><b>Surname:</b> {{msg.payload.patient.surname}}</div>\n    <div style=\"font-size: 1.8em; margin-bottom: 0.4em;\"><b>Age:</b> {{msg.payload.patient.age}}</div>\n    <div style=\"font-size: 1.8em;\"><b>Assigned Devices:</b> {{msg.payload.patient.devices}}</div>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 2110,
+        "y": 260,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "b5f8fbfabb8703e4",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Build Medication Url",
+        "func": "if (msg.payload == 0 || msg.payload == undefined) {\n    return null; // stops the flow\n}\nmsg.url = `http://catalog:80/medications`;\nreturn msg;\n\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1440,
+        "y": 180,
+        "wires": [
+            [
+                "9481d3cac4230703"
+            ]
+        ]
+    },
+    {
+        "id": "9481d3cac4230703",
+        "type": "http request",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 1670,
+        "y": 180,
+        "wires": [
+            [
+                "3dde7b575939a0e7"
+            ]
+        ]
+    },
+    {
+        "id": "3dde7b575939a0e7",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "Filter medications",
+        "func": "if (!msg.payload || !Array.isArray(msg.payload.medications)) {\n    node.warn(\"No medications in payload\");\n    return msg;\n}\nlet patientID = flow.get('selectedPatientID');\nif (patientID === undefined || patientID === null) {\n    node.warn(\"No selectedPatientID provided\");\n    msg.payload.medications = [];\n    return msg;\n}\nlet filtered = msg.payload.medications.filter(m => String(m.patientID) === String(patientID));\nmsg.payload.medications = filtered;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1950,
+        "y": 180,
+        "wires": [
+            [
+                "a09a8467f4872a29",
+                "a6e17d50d7fca6f2"
+            ]
+        ]
+    },
+    {
+        "id": "23e4cd0c5e55c01c",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "store selected PatientID",
+        "func": "if (msg.payload == 0 || msg.payload == undefined) {\n    flow.set('selectedPatientID', null);\n    return null; // stops the flow, nothing sent to next node\n}\nlet patientID = msg.payload;\nflow.set('selectedPatientID', patientID);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1190,
+        "y": 320,
+        "wires": [
+            [
+                "b5f8fbfabb8703e4",
+                "set_selected_patient",
+                "e80b6293c50f336f",
+                "be4aa2c3ed3459da"
+            ]
+        ]
+    },
+    {
+        "id": "f61e2917da9ce8d7",
+        "type": "inject",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "1",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 490,
+        "y": 740,
+        "wires": [
+            [
+                "b8145145d26668e3"
+            ]
+        ]
+    },
+    {
+        "id": "b8145145d26668e3",
+        "type": "function",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "function 1",
+        "func": "let patientID = flow.get('selectedPatientID');\nlet old = flow.get('oldPatientID')\nif(patientID != old){\n    node.send([\n        { payload: 0 },   // heart rate\n        { payload: 0 },   // oxygen\n        { payload: 0 }    // temperature\n    ]);\n}\nflow.set('oldPatientID', patientID);\nreturn null;",
+        "outputs": 3,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 680,
+        "y": 740,
+        "wires": [
+            [
+                "208a0b692f586723",
+                "20a954bdc9091cd8"
+            ],
+            [
+                "ui_oxygen_gauge"
+            ],
+            [
+                "5f67936ead30a166"
+            ]
+        ]
+    },
+    {
+        "id": "20a954bdc9091cd8",
+        "type": "debug",
+        "z": "1a1a1a1a1a1a1a1a",
+        "name": "debug 9",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 930,
+        "y": 600,
+        "wires": []
+    },
+    {
+        "id": "2407f8df0e0a2e8f",
+        "type": "mqtt-broker",
+        "name": "mosquitto",
+        "broker": "mosquitto",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "dashboard_group",
+        "type": "ui_group",
+        "name": "Patient Dashboard",
+        "tab": "dashboard_tab",
+        "order": 1,
+        "disp": true,
+        "width": 12,
+        "collapse": false
+    },
+    {
+        "id": "29d99d9c0d45448b",
+        "type": "ui_group",
+        "name": "Measurements",
+        "tab": "dashboard_tab",
+        "order": 2,
+        "disp": true,
+        "width": 30,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "dashboard_tab",
+        "type": "ui_tab",
+        "name": "Patients",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    }
+]

@@ -1,0 +1,32 @@
+{
+    "catalogURL": "http://catalog",
+    "ThingspeakURL": "https://api.thingspeak.com",
+    "UserAPIKey": "INSERT USER KEY",
+    "mqtt_data":{
+        "broker": "mosquitto",
+        "port":1883,
+        "mqtt_topic":"project/sensors/#"
+    },
+    "serviceInfo": {
+        "ID": "",
+        "serviceName": "ThingspeakAdaptor",
+        "last_update": ""
+    },
+    "thingspeak_fields": [
+        "temperature",
+        "acceleration",
+        "heart_rate",
+        "oxygen_saturation"
+    ],
+    "number_of_samples":"10",
+    "normal_values": {
+        "temperature": 36.5,
+        "acceleration": 0.0,
+        "heart_rate": 60,
+        "oxygen_saturation": 95
+    },
+    "pingInterval": 60,
+    "apiPort": 8081,
+    "ChannelsFileName": "channels.json"
+
+}

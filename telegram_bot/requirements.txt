@@ -1,0 +1,4 @@
+telepot==12.7
+Requests==2.31.0
+paho_mqtt==1.6.1
+

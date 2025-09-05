@@ -1,0 +1,18 @@
+{
+    "pingInterval": 60,
+    "catalogURL": "http://catalog:80",
+    "deviceInfo":{
+        "ID": "",
+        "IP": "localhost",
+        "port": 9090,
+        "location": "",
+        "patientID": "1",
+        "deviceType": "oximeter_sensor"
+    },
+    "mqtt_data":{
+        "broker":"mosquitto",
+        "port":1883,
+        "mqtt_topic_publish":"project/sensors"
+    },
+    "time_interval": 60
+}

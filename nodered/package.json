@@ -1,0 +1,7 @@
+{
+  "name": "project-nodered",
+  "description": "Custom Node-RED with dashboard",
+  "dependencies": {
+    "node-red-dashboard": "^3.6.0"
+  }
+}
